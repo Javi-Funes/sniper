@@ -2,9 +2,9 @@ name: Radar Francotirador SMC
 
 on:
   schedule:
-    # Ejecuta a las 19:45 UTC (16:45 hora Argentina) de Lunes a Viernes
-    - cron: '45 19 * * 1-5'
-  workflow_dispatch: # Permite ejecutar el bot manualmente con un botón
+    # Ejecuta a las 23:00 UTC (20:00 hora Argentina) de Lunes a Viernes
+    - cron: '0 23 * * 1-5'
+  workflow_dispatch: # El gatillo manual para pruebas
 
 jobs:
   run-sniper:
