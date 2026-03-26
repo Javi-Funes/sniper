@@ -47,7 +47,7 @@ def enviar_alerta_francotirador(ticker, precio, ote, fuerza):
 tickers_byma = [
     # ADRs y Acciones Locales (BYMA)
     "GGAL", "YPF", "BMA", "CEPU", "PAMP.BA", "EDN", "LOMA", "CRESY", "TGS", "VIST",
-    "MELI", "NU", "AGRO", "GLOB", "DESP.BA", "TX", "ALUA.BA", "TXAR.BA", "STNE", "PAGS",
+    "MELI", "NU", "AGRO", "GLOB", "TX", "ALUA.BA", "TXAR.BA", "STNE", "PAGS",
     "EWZ", "VALE", "PBR", "ITUB", "BBD", 
     # CEDEARs (Tech, Value & ETFs)
     "BABA", "AMZN", "AAPL", "MSFT", "NVDA", "TSLA", "META", "GOOGL", "AMD", 
