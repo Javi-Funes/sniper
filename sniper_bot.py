@@ -27,7 +27,7 @@ def gestionar_salidas():
     print("🔎 Auditando posiciones activas en Google Sheets...")
     alertas = 0
     if not URL_CARTERA:
-        print("Aviso: No se detectó URL_CARTERA en los secretos.")
+        print("Aviso: No se detectó URL_CARTERA en los secretos. Omitiendo auditoría de salidas.")
         return 0
 
     try:
@@ -36,36 +36,41 @@ def gestionar_salidas():
 
         tickers = cartera['Ticker'].tolist()
         data = yf.download(tickers, period="1y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
-        if len(tickers) == 1: data = {tickers[0]: data}
 
         for _, row in cartera.iterrows():
             t = row['Ticker']
-            df = data[t].dropna()
             
+            # Extracción robusta anti-errores de yfinance
+            if len(tickers) == 1:
+                df = data.dropna()
+            else:
+                df = data[t].dropna() if t in data else pd.DataFrame()
+            
+            if df.empty or 'Close' not in df.columns: 
+                continue
+
             cierre = float(df['Close'].iloc[-1])
             alto = float(df['High'].iloc[-1])
             bajo = float(df['Low'].iloc[-1])
             
-            # Cálculo de Premium Zone Intermedia (0.382)
             max_50 = float(df['High'].iloc[-50:].max())
             min_50 = float(df['Low'].iloc[-50:].min())
             premium_zone = max_50 - (max_50 - min_50) * 0.382
             
-            # Fuerza Institucional para divergencias
             vol_hoy = float(df['Volume'].iloc[-1])
             ma_vol = float(df['Volume'].rolling(20).mean().iloc[-1])
             score_fuerza = (min(vol_hoy / ma_vol, 2) / 2) * 100
             
             motivo = ""
             if bajo <= float(row['Stop_Loss']):
-                motivo = f"🩸 *STOP LOSS EJECUTADO*: El precio perforó los ${float(row['Stop_Loss']):.2f}. (Mínimo de hoy: ${bajo:.2f})"
+                motivo = f"🩸 *STOP LOSS EJECUTADO*: El precio perforó los ${float(row['Stop_Loss']):.2f}."
             elif alto >= float(row['Take_Profit']):
-                motivo = f"🏆 *TAKE PROFIT ALCANZADO*: El precio tocó tu objetivo de ${float(row['Take_Profit']):.2f}. (Máximo de hoy: ${alto:.2f})"
+                motivo = f"🏆 *TAKE PROFIT ALCANZADO*: El precio tocó tu objetivo de ${float(row['Take_Profit']):.2f}."
             elif cierre >= premium_zone and score_fuerza < 45:
-                motivo = f"📉 *ALERTA DE DISTRIBUCIÓN (Premium Zone)*: Precio en ${cierre:.2f}. El volumen institucional ha caído al {score_fuerza:.1f}%. Liquida antes de la reversión."
+                motivo = f"📉 *ALERTA DE DISTRIBUCIÓN (Premium Zone)*: Precio en ${cierre:.2f}. Volumen institucional en {score_fuerza:.1f}%."
 
             if motivo:
-                msg = f"⚠️ *ORDEN DE EXTRACCIÓN: {t}*\n\n{motivo}\n\n👉 _Acciona en tu broker y luego borra la fila en tu Google Sheet._"
+                msg = f"⚠️ *ORDEN DE EXTRACCIÓN: {t}*\n\n{motivo}\n\n👉 _Acciona en tu broker y borra la fila en Google Sheets._"
                 enviar_telegram(msg)
                 alertas += 1
     except Exception as e: 
@@ -83,13 +88,18 @@ def buscar_entradas():
     ]
     print(f"📡 Escaneando microestructura de {len(activos)} activos...")
     data = yf.download(activos, period="1y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
-    if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(0)
     
     entradas = 0
     for t in activos:
         try:
-            df = data[t].dropna()
-            if len(df) < 55: continue
+            # Extracción robusta anti-errores
+            if len(activos) == 1:
+                df = data.dropna()
+            else:
+                df = data[t].dropna() if t in data else pd.DataFrame()
+                
+            if df.empty or 'Volume' not in df.columns:
+                continue
 
             df['MA20_Vol'] = df['Volume'].rolling(window=20).mean()
             cierre = float(df['Close'].iloc[-1])
@@ -103,19 +113,16 @@ def buscar_entradas():
             r_high = float(df['High'].iloc[-50:].max())
             r_low = float(df['Low'].iloc[-50:].min())
             
-            # --- MATEMÁTICA INSTITUCIONAL ---
             ote = r_high - (r_high - r_low) * 0.786
             tp_1618 = r_low + (r_high - r_low) * 1.618
-            sl_estructural = r_low * 0.98  # 2% debajo del mínimo del swing
+            sl_estructural = r_low * 0.98  
             pz_intermedia = r_high - (r_high - r_low) * 0.382
             
-            # Fuerza Institucional
             rango = alto - bajo if (alto - bajo) > 0 else 0.0001
             desp = abs(cierre - apertura) / rango
             vol_rel = vol / ma_vol if ma_vol > 0 else 1
             fuerza = (desp * 0.6 + (min(vol_rel, 2) / 2) * 0.4) * 100
             
-            # Gatillo Táctico
             if bajo <= ote and fuerza > 70 and cierre > ayer:
                 msg = (
                     f"🚨 *NUEVA ALERTA DE FRANCOTIRADOR* 🚨\n\n"
@@ -126,11 +133,12 @@ def buscar_entradas():
                     f"📋 *DATOS PARA TU GOOGLE SHEET:*\n"
                     f"🛑 *Stop Loss:* ${sl_estructural:.2f}\n"
                     f"🎯 *Take Profit:* ${tp_1618:.2f}\n"
-                    f"⚠️ *Premium Zone:* ${pz_intermedia:.2f} (Inicio de vigilancia)\n"
+                    f"⚠️ *Premium Zone:* ${pz_intermedia:.2f}\n"
                 )
                 enviar_telegram(msg)
                 entradas += 1
         except Exception as e:
+            print(f"Error procesando {t}: {e}")
             continue
     return entradas
 
