@@ -42,17 +42,28 @@ def enviar_alerta_francotirador(ticker, precio, ote, fuerza):
     enviar_mensaje_telegram(mensaje)
 
 # ==========================================
-# 1. CONFIGURACIÓN DEL RADAR (50 ACTIVOS)
+# 1. CONFIGURACIÓN DEL RADAR (ACCIONES + ETFs)
 # ==========================================
 tickers_byma = [
     # ADRs y Acciones Locales (BYMA)
     "GGAL", "YPF", "BMA", "CEPU", "PAMP.BA", "EDN", "LOMA", "CRESY", "TGS", "VIST",
-    "MELI", "NU", "AGRO", "GLOB", "TX", "ALUA.BA", "TXAR.BA", "STNE", "PAGS",
+    "MELI", "NU", "AGRO", "GLOB", "DESP.BA", "TX", "ALUA.BA", "TXAR.BA", "STNE", "PAGS",
     "EWZ", "VALE", "PBR", "ITUB", "BBD", 
-    # CEDEARs (Tech, Value & ETFs)
+    
+    # CEDEARs (Mega Caps & Value)
     "BABA", "AMZN", "AAPL", "MSFT", "NVDA", "TSLA", "META", "GOOGL", "AMD", 
     "KO", "PEP", "MCD", "WMT", "JPM", "V", "MA", "DIS", "NFLX", "INTC", "CSCO", 
-    "XOM", "CVX", "SPY", "QQQ", "DIA"
+    "XOM", "CVX", 
+    
+    # ETFs (Los índices y sectores más pesados en BYMA)
+    "SPY",   # S&P 500
+    "QQQ",   # Nasdaq 100
+    "DIA",   # Dow Jones
+    "IWM",   # Russell 2000 (Small Caps)
+    "EEM",   # Emerging Markets
+    "XLF",   # Financial Sector
+    "XLE",   # Energy Sector
+    "ARKK"   # Ark Innovation ETF
 ]
 
 print(f"📡 BÚNKER TÁCTICO: Iniciando barrido de {len(tickers_byma)} activos...")
