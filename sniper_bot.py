@@ -84,7 +84,7 @@ def buscar_entradas():
     activos = [
         # 🇦🇷 ADRs y Acciones Locales (Fuerte Beta)
         "GGAL", "YPF", "BMA", "CEPU", "PAMP.BA", "EDN", "LOMA", "CRESY", "TGS", "VIST",
-        "MELI", "NU", "AGRO", "GLOB", "DESP.BA", "TX", "ALUA.BA", "TXAR.BA", "STNE", "PAGS",
+        "MELI", "NU", "AGRO", "GLOB", "TX", "ALUA.BA", "TXAR.BA", "STNE", "PAGS",
         
         # 🇧🇷 Brasil (Commodities y Bancos)
         "EWZ", "VALE", "PBR", "ITUB", "BBD", 
