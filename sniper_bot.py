@@ -82,9 +82,20 @@ def gestionar_salidas():
 # ==========================================
 def buscar_entradas():
     activos = [
-        "GGAL", "YPF", "BMA", "CEPU", "PAMP.BA", "EDN", "LOMA", "VIST", "MELI", "NU", "AGRO", "DESP.BA", "TXAR.BA",
-        "NVDA", "META", "AAPL", "MSFT", "AMZN", "GOOGL", "AMD", "TSLA", "BABA", "KO", "JPM", "V",
-        "SPY", "QQQ", "DIA", "IWM", "EEM", "XLF", "XLE", "ARKK", "PBR", "VALE"
+        # 🇦🇷 ADRs y Acciones Locales (Fuerte Beta)
+        "GGAL", "YPF", "BMA", "CEPU", "PAMP.BA", "EDN", "LOMA", "CRESY", "TGS", "VIST",
+        "MELI", "NU", "AGRO", "GLOB", "DESP.BA", "TX", "ALUA.BA", "TXAR.BA", "STNE", "PAGS",
+        
+        # 🇧🇷 Brasil (Commodities y Bancos)
+        "EWZ", "VALE", "PBR", "ITUB", "BBD", 
+        
+        # 🇺🇸 CEDEARs (Tech, Value & Mega Caps)
+        "BABA", "AMZN", "AAPL", "MSFT", "NVDA", "TSLA", "META", "GOOGL", "AMD", 
+        "KO", "PEP", "MCD", "WMT", "JPM", "V", "MA", "DIS", "NFLX", "INTC", "CSCO", 
+        "XOM", "CVX", 
+        
+        # 🌐 ETFs (Índices y Sectores Globales)
+        "SPY", "QQQ", "DIA", "IWM", "EEM", "XLF", "XLE", "ARKK"
     ]
     print(f"📡 Escaneando microestructura de {len(activos)} activos...")
     data = yf.download(activos, period="1y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
