@@ -31,8 +31,8 @@ def gestionar_salidas():
         return 0
 
     try:
-        cartera = pd.read_csv(URL_CARTERA)
-        if cartera.empty: return 0
+        # Lee solo las columnas necesarias e ignora cualquier fila sucia sin frenar el bot
+        cartera = pd.read_csv(URL_CARTERA, usecols=['Ticker', 'Precio_Compra', 'Stop_Loss', 'Take_Profit'], on_bad_lines='skip')
 
         tickers = cartera['Ticker'].tolist()
         data = yf.download(tickers, period="1y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
