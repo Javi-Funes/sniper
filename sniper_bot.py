@@ -39,7 +39,6 @@ def gestionar_salidas():
             return 0
 
         tickers = cartera['Ticker'].tolist()
-        # Descargamos 2 años para poder auditar horizontes Macro
         data = yf.download(tickers, period="2y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
 
         for _, row in cartera.iterrows():
@@ -52,7 +51,7 @@ def gestionar_salidas():
             alto = float(df['High'].iloc[-1])
             bajo = float(df['Low'].iloc[-1])
             
-            # Premium Zones: Micro (50d) y Macro (250d)
+            # Premium Zones
             max_50 = float(df['High'].iloc[-50:].max())
             min_50 = float(df['Low'].iloc[-50:].min())
             pz_micro = max_50 - (max_50 - min_50) * 0.382
@@ -61,7 +60,7 @@ def gestionar_salidas():
             min_250 = float(df['Low'].iloc[-250:].min()) if len(df) >= 250 else min_50
             pz_macro = max_250 - (max_250 - min_250) * 0.382
             
-            # Fuerza Institucional (Agotamiento)
+            # Fuerza Institucional
             vol_hoy = float(df['Volume'].iloc[-1])
             ma_vol = float(df['Volume'].rolling(20).mean().iloc[-1])
             score_fuerza = (min(vol_hoy / ma_vol, 2) / 2) * 100
@@ -97,7 +96,6 @@ def buscar_entradas():
         "XOM", "CVX", "SPY", "QQQ", "DIA", "IWM", "EEM", "XLF", "XLE", "ARKK"
     ]
     print(f"📡 Escaneando motor fractal (Micro/Macro) en {len(activos)} activos...")
-    # Descargamos 2 años de historia para el análisis Macro
     data = yf.download(activos, period="2y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
     
     entradas = 0
@@ -116,7 +114,7 @@ def buscar_entradas():
             ma_vol = float(df['MA20_Vol'].iloc[-1])
             ayer = float(df['Close'].iloc[-2])
             
-            # --- CÁLCULOS MACRO (250 Días / 1 Año) ---
+            # --- CÁLCULOS MACRO ---
             r_high_macro = float(df['High'].iloc[-250:].max())
             r_low_macro = float(df['Low'].iloc[-250:].min())
             ote_macro = r_high_macro - (r_high_macro - r_low_macro) * 0.786
@@ -124,7 +122,7 @@ def buscar_entradas():
             sl_macro = r_low_macro * 0.90
             pz_macro = r_high_macro - (r_high_macro - r_low_macro) * 0.382
 
-            # --- CÁLCULOS MICRO (50 Días / Swing) ---
+            # --- CÁLCULOS MICRO ---
             r_high_micro = float(df['High'].iloc[-50:].max())
             r_low_micro = float(df['Low'].iloc[-50:].min())
             ote_micro = r_high_micro - (r_high_micro - r_low_micro) * 0.786
@@ -132,13 +130,13 @@ def buscar_entradas():
             sl_micro = r_low_micro * 0.98
             pz_micro = r_high_micro - (r_high_micro - r_low_micro) * 0.382
             
-            # --- FUERZA INSTITUCIONAL ---
+            # --- FUERZA ---
             rango = alto - bajo if (alto - bajo) > 0 else 0.0001
             desp = abs(cierre - apertura) / rango
             vol_rel = vol / ma_vol if ma_vol > 0 else 1
             fuerza = (desp * 0.6 + (min(vol_rel, 2) / 2) * 0.4) * 100
             
-            # --- GATILLOS FRACTALES ---
+            # --- GATILLOS ---
             es_macro = bajo <= ote_macro and fuerza > 70 and cierre > ayer
             es_micro = bajo <= ote_micro and fuerza > 70 and cierre > ayer
 
@@ -147,8 +145,8 @@ def buscar_entradas():
                     f"🌋 *ALERTA MACRO (LARGO PLAZO)* 🌋\n\n"
                     f"🎯 *Activo:* {t} | 💰 *Entrada:* ${cierre:.2f}\n"
                     f"🔥 *Fuerza:* {fuerza:.1f}% | ✅ *Suelo Anual Detectado*\n\n"
-                    f"📋 *DATOS PARA GOOGLE SHEET (Visión 5 Años):*\n"
-                    f"🛑 *Stop Loss:* ${sl_macro:.2f} (-10% holgura)\n"
+                    f"📋 *DATOS PARA GOOGLE SHEET:*\n"
+                    f"🛑 *Stop Loss:* ${sl_macro:.2f}\n"
                     f"🎯 *Take Profit:* ${tp_macro:.2f}\n"
                     f"⚠️ *Premium Zone:* ${pz_macro:.2f}\n"
                 )
@@ -159,7 +157,7 @@ def buscar_entradas():
                     f"⚡ *ALERTA MICRO (SWING TRADING)* ⚡\n\n"
                     f"🎯 *Activo:* {t} | 💰 *Entrada:* ${cierre:.2f}\n"
                     f"🔥 *Fuerza:* {fuerza:.1f}% | ✅ *Rebote de Corto Plazo*\n\n"
-                    f"📋 *DATOS PARA GOOGLE SHEET (Semanas/Meses):*\n"
+                    f"📋 *DATOS PARA GOOGLE SHEET:*\n"
                     f"🛑 *Stop Loss:* ${sl_micro:.2f}\n"
                     f"🎯 *Take Profit:* ${tp_micro:.2f}\n"
                     f"⚠️ *Premium Zone:* ${pz_micro:.2f}\n"
@@ -168,3 +166,27 @@ def buscar_entradas():
                 entradas += 1
                 
         except Exception as e:
+            # Aquí es donde fallaba la sangría. ¡Ahora está blindado!
+            print(f"Error procesando el activo {t}: {e}")
+            continue
+            
+    return entradas
+
+# ==========================================
+# 🚀 EJECUCIÓN DEL FLUJO PRINCIPAL
+# ==========================================
+if __name__ == "__main__":
+    print("Iniciando operaciones del Búnker SMC...")
+    salidas = gestionar_salidas()
+    entradas = buscar_entradas()
+    
+    fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+    mensaje_final = (
+        f"🟢 *BÚNKER SMC: REPORTE DUAL (Micro/Macro)*\n"
+        f"📅 Fecha: {fecha_hoy}\n"
+        f"🛡️ Salidas detectadas: {salidas}\n"
+        f"🎯 Nuevas Entradas: {entradas}\n\n"
+        f"_Sistemas blindados y en suspensión._"
+    )
+    enviar_telegram(mensaje_final)
+    print("Operación finalizada. Transmisión cerrada.")
