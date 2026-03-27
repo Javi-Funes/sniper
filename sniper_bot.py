@@ -31,9 +31,16 @@ def gestionar_salidas():
         return 0
 
     try:
-        # Lee solo las columnas necesarias e ignora cualquier fila sucia sin frenar el bot
-        cartera = pd.read_csv(URL_CARTERA, usecols=['Ticker', 'Precio_Compra', 'Stop_Loss', 'Take_Profit'], on_bad_lines='skip')
-
+        # Leemos el archivo detectando automáticamente el separador (, o ;) y limpiamos espacios vacíos
+        cartera = pd.read_csv(URL_CARTERA, sep=None, engine='python', on_bad_lines='skip')
+        cartera.columns = cartera.columns.str.strip() # Borra espacios invisibles en los títulos
+        
+        # Filtramos solo si las columnas existen
+        columnas_requeridas = ['Ticker', 'Precio_Compra', 'Stop_Loss', 'Take_Profit']
+        if not all(col in cartera.columns for col in columnas_requeridas):
+            print(f"Error: Columnas detectadas en el archivo: {cartera.columns.tolist()}")
+            return 0
+            
         tickers = cartera['Ticker'].tolist()
         data = yf.download(tickers, period="1y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
 
