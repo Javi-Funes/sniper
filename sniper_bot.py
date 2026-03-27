@@ -39,7 +39,7 @@ def gestionar_salidas():
             return 0
 
         tickers = cartera['Ticker'].tolist()
-        data = yf.download(tickers, period="2y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
+        data = yf.download(tickers, period="2y", interval="1d", group_by="ticker", auto_adjust=True, progress=False, threads=False)
 
         for _, row in cartera.iterrows():
             t = row['Ticker']
@@ -96,7 +96,7 @@ def buscar_entradas():
         "XOM", "CVX", "SPY", "QQQ", "DIA", "IWM", "EEM", "XLF", "XLE", "ARKK"
     ]
     print(f"📡 Escaneando motor fractal (Micro/Macro) en {len(activos)} activos...")
-    data = yf.download(activos, period="2y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
+    data = yf.download(activos, period="2y", interval="1d", group_by="ticker", auto_adjust=True, progress=False, threads=False)
     
     entradas = 0
     for t in activos:
