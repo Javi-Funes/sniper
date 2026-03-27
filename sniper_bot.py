@@ -6,136 +6,149 @@ import os
 from datetime import datetime
 
 # ==========================================
-# ⚙️ CREDENCIALES ENCRIPTADAS (Vía GitHub Secrets)
+# ⚙️ CONFIGURACIÓN DE CONEXIONES (SEGURIDAD MÁXIMA)
 # ==========================================
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+URL_CARTERA = os.environ.get("URL_CARTERA")
 
-def enviar_mensaje_telegram(mensaje):
-    """Función maestra para transmitir al búnker vía Telegram."""
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Error: Credenciales de Telegram no encontradas en el servidor.")
+def enviar_telegram(mensaje):
+    """Transmisor seguro hacia el búnker."""
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: 
+        print("Error OpSec: Faltan credenciales de Telegram.")
         return
-        
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": mensaje,
-        "parse_mode": "Markdown"
-    }
+    requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": mensaje, "parse_mode": "Markdown"})
+
+# ==========================================
+# 🛡️ MÓDULO 1: AUDITORÍA DE SALIDAS
+# ==========================================
+def gestionar_salidas():
+    print("🔎 Auditando posiciones activas en Google Sheets...")
+    alertas = 0
+    if not URL_CARTERA:
+        print("Aviso: No se detectó URL_CARTERA en los secretos.")
+        return 0
+
     try:
-        requests.post(url, data=payload)
-    except Exception as e:
-        print(f"Fallo en la transmisión de Telegram: {e}")
+        cartera = pd.read_csv(URL_CARTERA)
+        if cartera.empty: return 0
 
-def enviar_alerta_francotirador(ticker, precio, ote, fuerza):
-    """Dispara la alerta táctica cuando el Smart Money confirma entrada."""
-    mensaje = (
-        f"🚨 *ALERTA DE FRANCOTIRADOR SMC* 🚨\n\n"
-        f"🎯 *Activo:* {ticker}\n"
-        f"💰 *Precio Cierre:* ${precio:.2f}\n"
-        f"📉 *Zona OTE (0.786):* ${ote:.2f}\n"
-        f"🔥 *Fuerza Institucional:* {fuerza:.1f}%\n"
-        f"✅ *Estructura (MSS):* Confirmado (Rechazo Alcista)\n\n"
-        f"🛡️ _Acción: Evaluar entrada mañana. Stop Loss bajo el mínimo de hoy (Riesgo máx 1.5%)._"
-    )
-    enviar_mensaje_telegram(mensaje)
+        tickers = cartera['Ticker'].tolist()
+        data = yf.download(tickers, period="1y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
+        if len(tickers) == 1: data = {tickers[0]: data}
+
+        for _, row in cartera.iterrows():
+            t = row['Ticker']
+            df = data[t].dropna()
+            
+            cierre = float(df['Close'].iloc[-1])
+            alto = float(df['High'].iloc[-1])
+            bajo = float(df['Low'].iloc[-1])
+            
+            # Cálculo de Premium Zone Intermedia (0.382)
+            max_50 = float(df['High'].iloc[-50:].max())
+            min_50 = float(df['Low'].iloc[-50:].min())
+            premium_zone = max_50 - (max_50 - min_50) * 0.382
+            
+            # Fuerza Institucional para divergencias
+            vol_hoy = float(df['Volume'].iloc[-1])
+            ma_vol = float(df['Volume'].rolling(20).mean().iloc[-1])
+            score_fuerza = (min(vol_hoy / ma_vol, 2) / 2) * 100
+            
+            motivo = ""
+            if bajo <= float(row['Stop_Loss']):
+                motivo = f"🩸 *STOP LOSS EJECUTADO*: El precio perforó los ${float(row['Stop_Loss']):.2f}. (Mínimo de hoy: ${bajo:.2f})"
+            elif alto >= float(row['Take_Profit']):
+                motivo = f"🏆 *TAKE PROFIT ALCANZADO*: El precio tocó tu objetivo de ${float(row['Take_Profit']):.2f}. (Máximo de hoy: ${alto:.2f})"
+            elif cierre >= premium_zone and score_fuerza < 45:
+                motivo = f"📉 *ALERTA DE DISTRIBUCIÓN (Premium Zone)*: Precio en ${cierre:.2f}. El volumen institucional ha caído al {score_fuerza:.1f}%. Liquida antes de la reversión."
+
+            if motivo:
+                msg = f"⚠️ *ORDEN DE EXTRACCIÓN: {t}*\n\n{motivo}\n\n👉 _Acciona en tu broker y luego borra la fila en tu Google Sheet._"
+                enviar_telegram(msg)
+                alertas += 1
+    except Exception as e: 
+        print(f"Error en auditoría de cartera: {e}")
+    return alertas
 
 # ==========================================
-# 1. CONFIGURACIÓN DEL RADAR (ACCIONES + ETFs)
+# 🎯 MÓDULO 2: ESCÁNER DE NUEVAS OPORTUNIDADES
 # ==========================================
-tickers_byma = [
-    # ADRs y Acciones Locales (BYMA)
-    "GGAL", "YPF", "BMA", "CEPU", "PAMP.BA", "EDN", "LOMA", "CRESY", "TGS", "VIST",
-    "MELI", "NU", "AGRO", "GLOB", "DESP.BA", "TX", "ALUA.BA", "TXAR.BA", "STNE", "PAGS",
-    "EWZ", "VALE", "PBR", "ITUB", "BBD", 
+def buscar_entradas():
+    activos = [
+        "GGAL", "YPF", "BMA", "CEPU", "PAMP.BA", "EDN", "LOMA", "VIST", "MELI", "NU", "AGRO", "DESP.BA", "TXAR.BA",
+        "NVDA", "META", "AAPL", "MSFT", "AMZN", "GOOGL", "AMD", "TSLA", "BABA", "KO", "JPM", "V",
+        "SPY", "QQQ", "DIA", "IWM", "EEM", "XLF", "XLE", "ARKK", "PBR", "VALE"
+    ]
+    print(f"📡 Escaneando microestructura de {len(activos)} activos...")
+    data = yf.download(activos, period="1y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
+    if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(0)
     
-    # CEDEARs (Mega Caps & Value)
-    "BABA", "AMZN", "AAPL", "MSFT", "NVDA", "TSLA", "META", "GOOGL", "AMD", 
-    "KO", "PEP", "MCD", "WMT", "JPM", "V", "MA", "DIS", "NFLX", "INTC", "CSCO", 
-    "XOM", "CVX", 
-    
-    # ETFs (Los índices y sectores más pesados en BYMA)
-    "SPY",   # S&P 500
-    "QQQ",   # Nasdaq 100
-    "DIA",   # Dow Jones
-    "IWM",   # Russell 2000 (Small Caps)
-    "EEM",   # Emerging Markets
-    "XLF",   # Financial Sector
-    "XLE",   # Energy Sector
-    "ARKK"   # Ark Innovation ETF
-]
+    entradas = 0
+    for t in activos:
+        try:
+            df = data[t].dropna()
+            if len(df) < 55: continue
 
-print(f"📡 BÚNKER TÁCTICO: Iniciando barrido de {len(tickers_byma)} activos...")
-data = yf.download(tickers_byma, period="1y", interval="1d", group_by="ticker", auto_adjust=True, progress=False)
-
-# Aplanar columnas si yfinance devuelve MultiIndex
-if isinstance(data.columns, pd.MultiIndex):
-    data.columns = data.columns.get_level_values(0)
-
-alertas_enviadas = 0
-activos_analizados = 0
-
-# ==========================================
-# 2. MOTOR DE MICROESTRUCTURA (SMC / WYCKOFF)
-# ==========================================
-for ticker in tickers_byma:
-    try:
-        df = data[ticker].dropna()
-        if len(df) < 55: 
+            df['MA20_Vol'] = df['Volume'].rolling(window=20).mean()
+            cierre = float(df['Close'].iloc[-1])
+            apertura = float(df['Open'].iloc[-1])
+            alto = float(df['High'].iloc[-1])
+            bajo = float(df['Low'].iloc[-1])
+            vol = float(df['Volume'].iloc[-1])
+            ma_vol = float(df['MA20_Vol'].iloc[-1])
+            ayer = float(df['Close'].iloc[-2])
+            
+            r_high = float(df['High'].iloc[-50:].max())
+            r_low = float(df['Low'].iloc[-50:].min())
+            
+            # --- MATEMÁTICA INSTITUCIONAL ---
+            ote = r_high - (r_high - r_low) * 0.786
+            tp_1618 = r_low + (r_high - r_low) * 1.618
+            sl_estructural = r_low * 0.98  # 2% debajo del mínimo del swing
+            pz_intermedia = r_high - (r_high - r_low) * 0.382
+            
+            # Fuerza Institucional
+            rango = alto - bajo if (alto - bajo) > 0 else 0.0001
+            desp = abs(cierre - apertura) / rango
+            vol_rel = vol / ma_vol if ma_vol > 0 else 1
+            fuerza = (desp * 0.6 + (min(vol_rel, 2) / 2) * 0.4) * 100
+            
+            # Gatillo Táctico
+            if bajo <= ote and fuerza > 70 and cierre > ayer:
+                msg = (
+                    f"🚨 *NUEVA ALERTA DE FRANCOTIRADOR* 🚨\n\n"
+                    f"🎯 *Activo:* {t}\n"
+                    f"💰 *Precio Entrada:* ${cierre:.2f}\n"
+                    f"🔥 *Fuerza Institucional:* {fuerza:.1f}%\n"
+                    f"✅ *Estructura:* MSS Confirmado en Zona OTE\n\n"
+                    f"📋 *DATOS PARA TU GOOGLE SHEET:*\n"
+                    f"🛑 *Stop Loss:* ${sl_estructural:.2f}\n"
+                    f"🎯 *Take Profit:* ${tp_1618:.2f}\n"
+                    f"⚠️ *Premium Zone:* ${pz_intermedia:.2f} (Inicio de vigilancia)\n"
+                )
+                enviar_telegram(msg)
+                entradas += 1
+        except Exception as e:
             continue
-            
-        activos_analizados += 1
-        df['MA20_Vol'] = df['Volume'].rolling(window=20).mean()
-        
-        # Telemetría de la última sesión
-        hoy_close = float(df['Close'].iloc[-1])
-        hoy_open = float(df['Open'].iloc[-1])
-        hoy_high = float(df['High'].iloc[-1])
-        hoy_low = float(df['Low'].iloc[-1])
-        hoy_vol = float(df['Volume'].iloc[-1])
-        ma20_vol_hoy = float(df['MA20_Vol'].iloc[-1])
-        ayer_close = float(df['Close'].iloc[-2])
-        
-        # Estructura Macro (Últimos 50 días)
-        r_high = float(df['High'].iloc[-50:].max())
-        r_low = float(df['Low'].iloc[-50:].min())
-        ote_level = r_high - (r_high - r_low) * 0.786
-        
-        # Proxy de Fuerza Institucional (60% Desplazamiento / 40% Volumen)
-        rango_vela = hoy_high - hoy_low if (hoy_high - hoy_low) > 0 else 0.0001
-        desplazamiento = abs(hoy_close - hoy_open) / rango_vela
-        vol_relativo = hoy_vol / ma20_vol_hoy if ma20_vol_hoy > 0 else 1
-        strength_score = (desplazamiento * 0.6 + (min(vol_relativo, 2) / 2) * 0.4) * 100
-        
-        # Reglas de Gatillo SMC
-        en_zona_ote = hoy_low <= ote_level
-        tiene_fuerza = strength_score > 70
-        hay_mss = hoy_close > ayer_close
-        
-        # Ejecución de Alerta
-        if en_zona_ote and tiene_fuerza and hay_mss:
-            print(f"🔥 OBJETIVO FIJADO: {ticker} | Fuerza: {strength_score:.1f}%")
-            enviar_alerta_francotirador(ticker, hoy_close, ote_level, strength_score)
-            alertas_enviadas += 1
-            
-    except Exception as e:
-        print(f"Error procesando {ticker}: {e}")
-        pass
+    return entradas
 
 # ==========================================
-# 3. PING DE SUPERVIVENCIA (REPORTE DE CIERRE)
+# 🚀 EJECUCIÓN DEL FLUJO PRINCIPAL
 # ==========================================
-fecha_hoy = datetime.now().strftime("%Y-%m-%d")
-print("\n" + "="*60)
-print(f"🔫 BARRIDO COMPLETADO ({fecha_hoy}). Alertas: {alertas_enviadas}")
-print("="*60)
-
-mensaje_final = (
-    f"🟢 *BÚNKER SMC - REPORTE DE CIERRE*\n"
-    f"📅 Fecha: {fecha_hoy}\n"
-    f"📊 Activos escaneados: {activos_analizados}/{len(tickers_byma)}\n"
-    f"🎯 Alertas tácticas generadas: {alertas_enviadas}\n\n"
-    f"_El radar entra en modo suspensión hasta el próximo ciclo._"
-)
-enviar_mensaje_telegram(mensaje_final)
+if __name__ == "__main__":
+    print("Iniciando operaciones del Búnker SMC...")
+    salidas = gestionar_salidas()
+    entradas = buscar_entradas()
+    
+    fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+    mensaje_final = (
+        f"🟢 *REPORTE DE BÚNKER SMC*\n"
+        f"📅 Fecha: {fecha_hoy}\n"
+        f"🛡️ Alertas de Salida emitidas: {salidas}\n"
+        f"🎯 Nuevas Entradas detectadas: {entradas}\n\n"
+        f"_Sistemas en modo suspensión hasta el próximo ciclo._"
+    )
+    enviar_telegram(mensaje_final)
+    print("Operación finalizada. Transmisión cerrada.")
